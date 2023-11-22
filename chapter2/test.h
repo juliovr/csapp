@@ -11,6 +11,7 @@
 #define WHT   "\x1B[37m"
 #define RESET "\x1B[0m"
 
+#define print_test_ok(string, ...) printf(GRN ##string## RESET, __VA_ARGS__)
 
 #define TEST_H
 #endif
