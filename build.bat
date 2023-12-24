@@ -9,4 +9,3 @@ pushd bin
 cl -Z7 ../%source_file% && %executable%
 
 popd
-
