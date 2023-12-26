@@ -1,0 +1,30 @@
+#
+# Hand-coded Y86_64 assembly
+#
+bubble_p:
+        irmovq  $8, %r8
+        jmp     .L2
+.L3:
+        addq    %r8, %rax
+.L5:
+        rrmovq  %rax, %r9
+        subq    %rsi, %r9
+        je      .L7
+        mrmovq  8(%rax), %rdx
+        mrmovq  (%rax), %rcx
+        rrmovq  %rdx, %r9
+        subq    %rcx, %r9
+        jge     .L3
+        rmmovq  %rcx, 8(%rax)
+        rmmovq  %rdx, (%rax)
+        jmp     .L3
+.L7:
+        subq    %r8, %rsi
+.L2:
+        rrmovq  %rsi, %r9
+        subq    %rdi, %r9
+        je      .L8
+        rrmovq  %rdi, %rax
+        jmp     .L5
+.L8:
+        ret

@@ -1,0 +1,38 @@
+#
+# Hand-coded Y86_64 assembly
+#
+bubble_p:
+        irmovq  $8, %r8
+        jmp     .L2
+.L3:
+        addq    %r8, %rax
+.L5:
+        rrmovq  %rax, %r9
+        subq    %rsi, %r9
+        je      .L7
+        mrmovq  8(%rax), %r10
+        mrmovq  (%rax), %r11
+        rrmovq  %r10, %r9
+        subq    %r11, %r9
+        ##############################
+        # Begin differences
+        ##############################
+        cmovl   %r10, %r12      # long t = *(current + 1);
+        cmovl   %r11, %r10      # *(current + 1) = *current;
+        cmovl   %r12, %r11      # *current = t;
+        rmmovq  %r11, (%rax)
+        rmmovq  %r10, 8(%rax)
+        ##############################
+        # End
+        ##############################
+        jmp     .L3
+.L7:
+        subq    %r8, %rsi
+.L2:
+        rrmovq  %rsi, %r9
+        subq    %rdi, %r9
+        je      .L8
+        rrmovq  %rdi, %rax
+        jmp     .L5
+.L8:
+        ret
