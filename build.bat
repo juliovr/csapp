@@ -6,6 +6,6 @@ set executable=%2
 IF NOT EXIST bin mkdir bin
 pushd bin
 
-cl -Z7 ../%source_file% && %executable%
+cl -Zi -O2 -MD /D "TBB_USE_THREADING_TOOLS" /DEBUG ../%source_file% && %executable%
 
 popd
