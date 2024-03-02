@@ -1,11 +1,13 @@
 /*
-gcc -Og -g -o bin/tiny_io_multiplexing -Wno-format-overflow src/chapter12/tiny_io_multiplexing.c && bin/tiny_io_multiplexing 3000
+gcc -Og -g -o bin/tiny_threads -Wno-format-overflow src/chapter12/tiny_threads.c && bin/tiny_threads 3000
 
 gdb:
-    gcc -Og -g -o bin/tiny_io_multiplexing -Wno-format-overflow src/chapter12/tiny_io_multiplexing.c && gdb --args bin/tiny_io_multiplexing 3000
+    gcc -Og -g -o bin/tiny_threads -Wno-format-overflow src/chapter12/tiny_threads.c && gdb --args bin/tiny_threads 3000
 */
 
 #include "../csapp.c"
+
+#define MAX_THREADS 8
 
 void doit(int fd);
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg);
@@ -15,80 +17,18 @@ void serve_static(int fd, char *filename, int filesize, char *method);
 void get_filetype(char *filename, char *filetype);
 void serve_dynamic(int fd, char *filename, char *cgiargs, char *method);
 
-typedef struct {
-    fd_set read_set;
-    fd_set ready_set;
-    int n_ready;
-    int max_i;
-    int max_fd;
-    int clientfd[FD_SETSIZE];
-    rio_t clientrio[FD_SETSIZE];
-} pool_t;
 
-void init_pool(pool_t *pool, int listenfd)
+void *handle_thread(void *vargp)
 {
-    for (int i = 0; i < FD_SETSIZE; ++i) {
-        pool->clientfd[i] = -1;
-    }
+    int connfd = *((int *)vargp);
+    free(vargp);
 
-    pool->max_i = -1;
-    pool->max_fd = listenfd;
+    Pthread_detach(pthread_self());
+    
+    doit(connfd);
+    Close(connfd);
 
-    FD_ZERO(&pool->read_set);
-    FD_SET(listenfd, &pool->read_set);
-}
-
-void add_client(pool_t *pool, int connfd)
-{
-    int i;
-
-    for (i = 0; i < FD_SETSIZE; ++i) {
-        if (pool->clientfd[i] < 0) {
-            pool->clientfd[i] = connfd;
-            Rio_readinitb(&pool->clientrio[i], connfd);
-
-            FD_SET(connfd, &pool->read_set);
-
-            if (connfd > pool->max_fd) {
-                pool->max_fd = connfd;
-            }
-
-            if (i > pool->max_i) {
-                pool->max_i = i;
-            }
-
-            break;
-        }
-    }
-
-    if (i == FD_SETSIZE) {
-        app_error("add_client error: Too many clients");
-    }
-}
-
-void process_clients(pool_t *pool)
-{
-    if (pool->n_ready < 1) {
-        return;
-    }
-
-
-    int n;
-    char buf[MAXLINE];
-
-    for (int i = 0; i <= pool->max_i; ++i) {
-        int connfd = pool->clientfd[i];
-        rio_t rio = pool->clientrio[i];
-
-        if (connfd > 0 && FD_ISSET(connfd, &pool->ready_set)) {
-            pool->n_ready--;
-
-            doit(connfd);
-            Close(connfd);
-            FD_CLR(connfd, &pool->read_set);
-            pool->clientfd[i] = -1;
-        }
-    }
+    return NULL;
 }
 
 int main(int argc, char **argv)
@@ -97,8 +37,8 @@ int main(int argc, char **argv)
     char hostname[MAXLINE], port[MAXLINE];
     socklen_t clientlen;
     struct sockaddr_storage clientaddr;
-    static pool_t pool; // If this is not static, it crashes because the stack cannot hold the 2 arrays in the struct
-
+    pthread_t tid;
+    
     /* Check command-line args */
     if (argc != 2) {
         fprintf(stderr, "Usage: %s <port>\n", argv[0]);
@@ -106,24 +46,15 @@ int main(int argc, char **argv)
     }
 
     listenfd = Open_listenfd(argv[1]);
-
-    init_pool(&pool, listenfd);
-
     while (1) {
-        pool.ready_set = pool.read_set;
-        pool.n_ready = Select(pool.max_fd + 1, &pool.ready_set, NULL, NULL, NULL);
+        clientlen = sizeof(clientaddr);
+        int *connfd = (int *)malloc(sizeof(int));
+        *connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
 
-        if (FD_ISSET(listenfd, &pool.ready_set)) {
-            clientlen = sizeof(clientaddr);
-            connfd = Accept(listenfd, (SA *)&clientaddr, &clientlen);
-            
-            Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
-            printf("Accepted connection from (%s, %s)\n", hostname, port);
-    
-            add_client(&pool, connfd);
-        }
+        Getnameinfo((SA *)&clientaddr, clientlen, hostname, MAXLINE, port, MAXLINE, 0);
+        printf("Accepted connection from (%s, %s)\n", hostname, port);
 
-        process_clients(&pool);
+        Pthread_create(&tid, NULL, handle_thread, connfd);
     }
 }
 

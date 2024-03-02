@@ -1,3 +1,7 @@
+/*
+gcc -Og -g -o bin/p23 -Wno-format-overflow src/chapter12/p23.c && bin/p23 3000
+*/
+
 #include "../csapp.c"
 
 // Represents a pool of connected descriptors
