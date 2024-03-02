@@ -4,13 +4,6 @@ gcc -Og -g -o bin/tfgets-select src/chapter12/tfgets-select.c && bin/tfgets-sele
 
 #include "../csapp.c"
 
-static sigjmp_buf sigbuf;
-
-void handler(int sig)
-{
-    siglongjmp(sigbuf, 1);
-}
-
 char *tfgets(char *s, int size, FILE *stream)
 {
     fd_set read_set;
